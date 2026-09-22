@@ -17,6 +17,7 @@
     "agentmail": "^0.5.23",
     "ai": "^7.0.93",
     "convex": "^1.45.0",
+    "exifr": "^7.1.3",
     "firecrawl": "^4.38.0",
     "lucide-react": "^1.39.0",
     "next": "16.3.4",
