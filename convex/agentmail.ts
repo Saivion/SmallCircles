@@ -10,7 +10,10 @@ import { mailClient } from "./lib/providers";
  */
 export const registerWebhook = internalAction({
   args: { url: v.string() },
-  returns: v.object({ webhookId: v.string(), secret: v.string(), reused: v.boolean() }),
+  // An existing webhook keeps its secret: AgentMail only hands it back on
+  // creation, so a reused one comes back without it and the deployment's
+  // AGENTMAIL_WEBHOOK_SECRET already holds it.
+  returns: v.object({ webhookId: v.string(), secret: v.optional(v.string()), reused: v.boolean() }),
   handler: async (_ctx, { url }) => {
     if (!/^https:\/\/.+\/agentmail\/webhook$/.test(url)) {
       throw new Error("url must be https://<deployment>.convex.site/agentmail/webhook");
@@ -18,7 +21,7 @@ export const registerWebhook = internalAction({
     const client = mailClient();
     const existing = await client.webhooks.list({ limit: 50 });
     const match = existing.webhooks?.find((w) => w.url === url);
-    if (match) return { webhookId: match.webhookId, secret: match.secret, reused: true };
+    if (match) return { webhookId: match.webhookId, ...(match.secret ? { secret: match.secret } : {}), reused: true };
     const hook = await client.webhooks.create({ url, eventTypes: ["message.received"] });
     return { webhookId: hook.webhookId, secret: hook.secret, reused: false };
   },
