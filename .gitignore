@@ -1,6 +1,6 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# --- dependencies -----------------------------------------------------------
 /node_modules
 /.pnp
 .pnp.*
@@ -10,40 +10,76 @@
 !.yarn/releases
 !.yarn/versions
 
-# build output
+# --- build output -----------------------------------------------------------
 /.next/
 /out/
 /build
+/dist
 *.tsbuildinfo
 next-env.d.ts
+.turbo
+.eslintcache
+.cache
+/coverage
 
-# secrets: keys for Convex, OpenAI, Firecrawl and AgentMail live here
+# --- secrets ----------------------------------------------------------------
+# Keys for Convex, OpenAI, Firecrawl and AgentMail live on the Convex
+# deployment (`npx convex env set`), never in this repo. Only .env.production,
+# which holds placeholders, is committed.
 .env*
-!.env.example
+!.env.production
+*.pem
+*.key
+*.p12
+*.crt
 
-# convex local state (the deployment's own; `convex/_generated` IS committed,
-# so the app typechecks and builds from a clean clone)
+# --- convex -----------------------------------------------------------------
+# The deployment's own local state. `convex/_generated` IS committed so the
+# app typechecks and builds from a clean clone.
 /.convex
 
-# editor and agent tooling
+# --- hosting ----------------------------------------------------------------
+.vercel
+.netlify
+
+# --- editors, OS and agent tooling ------------------------------------------
 /.claude
+CLAUDE.md
+.mcp.json
+.cursor
+.windsurf
 .vscode
 .idea
+*.swp
+*~
 .DS_Store
-*.pem
+Thumbs.db
+.firecrawl
 
-# logs
+# --- logs -------------------------------------------------------------------
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# working notes that are ours, not the app. README.md, ABOUT.md and
-# hackathon.md (the build log judges read) are what this repo publishes.
+# --- ours, not the app ------------------------------------------------------
+# README.md, ABOUT.md, HOW-IT-WORKS.md, DESIGN.md and hackathon.md are what
+# this repo publishes. Everything below is planning material and one-off
+# maintenance tools: seeding a deployment, the doodle contact sheet, the
+# README cover.
 /docs
 /scripts
 canvas.md
 SMALLCIRCLES-BUILD-PROMPT.md
 
-# hosting
-.vercel
+# Stray screenshots and test photos dropped in the root. Sample photos live
+# in public/samples and are committed.
+/*.jpg
+/*.jpeg
+/*.png
+/*.heic
+/*.webp
+
+# Output of scripts/doodle-sheet.mts
+/doodle-sheet.svg

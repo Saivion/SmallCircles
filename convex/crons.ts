@@ -2,9 +2,9 @@ import { cronJobs } from "convex/server";
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { INBOUND_SEEN_TTL_MS } from "./lib/limits";
 
 const PRUNE_BATCH = 200;
+const INBOUND_SEEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Retention: drop inboundSeen rows older than 7 days, 200 per call, rescheduling until done. */
 export const pruneInboundSeen = internalMutation({
@@ -23,9 +23,8 @@ export const pruneInboundSeen = internalMutation({
 });
 
 const crons = cronJobs();
-// Stalled runs fail; idle boards with unread cards start a run.
-crons.interval("sweep runs", { minutes: 2 }, internal.runs.sweep, {});
-// Tasks older than 24 h, mail older than 30 days.
-crons.daily("prune tasks and mail", { hourUTC: 4, minuteUTC: 0 }, internal.runs.prune, {});
+// A circle whose drawing stopped (the action died) is closed with what it has.
+crons.interval("sweep circles", { minutes: 2 }, internal.circles.sweep, {});
+crons.interval("sweep presence", { minutes: 5 }, internal.people.sweepPresence, {});
 crons.daily("prune inbound seen", { hourUTC: 4, minuteUTC: 15 }, internal.crons.pruneInboundSeen, {});
 export default crons;
