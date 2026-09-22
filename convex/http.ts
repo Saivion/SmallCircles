@@ -14,9 +14,9 @@ http.route({
 });
 
 /**
- * AgentMail `message.received` webhook (Svix-signed). Handoffs between agent
- * inboxes and human mail to any agent both land here; mail.ingestInbound
- * routes it by the workspace stamped on the message. Returns 200 quickly.
+ * AgentMail `message.received` webhook (Svix-signed): the inbox for memories.
+ * A photo (or a link) emailed to Small Circles becomes a circle. The work is
+ * scheduled so the webhook answers at once.
  */
 http.route({
   path: "/agentmail/webhook",
@@ -43,14 +43,14 @@ http.route({
       event_type?: string;
       message?: {
         inbox_id?: string;
-        thread_id?: string;
         message_id?: string;
+        thread_id?: string;
         from?: string;
         subject?: string;
         text?: string;
         extracted_text?: string;
         preview?: string;
-        headers?: Record<string, unknown>;
+        attachments?: { attachment_id?: string; filename?: string; content_type?: string; size?: number }[];
       };
     };
     try {
@@ -58,38 +58,28 @@ http.route({
     } catch {
       return new Response("bad json", { status: 400 });
     }
-
-    if (payload.event_type !== "message.received") {
-      return new Response("ignored", { status: 200 });
-    }
+    if (payload.event_type !== "message.received") return new Response("ignored", { status: 200 });
     const m = payload.message ?? {};
-    if (!m.inbox_id || !m.thread_id || !m.message_id) {
-      return new Response("ignored", { status: 200 });
-    }
-    const text = String(m.text ?? m.extracted_text ?? m.preview ?? "").slice(0, 60_000);
-    // Which workspace this belongs to: the stamp we put on the message we
-    // sent. Header names are case-insensitive, so match either way.
-    const headers = m.headers ?? {};
-    const stamped = Object.entries(headers).find(([k]) => k.toLowerCase() === "x-smallcircles-workspace")?.[1];
-    const workspace = typeof stamped === "string" ? stamped.trim().slice(0, 64) : undefined;
-    const subject = redact(m.subject ?? "", 200);
-    // Sender address: tells a teammate's handoff apart from human mail.
-    const from = typeof m.from === "string" ? m.from.slice(0, 320) : undefined;
+    if (!m.inbox_id || !m.message_id || typeof m.from !== "string") return new Response("ignored", { status: 200 });
 
-    try {
-      const res = await ctx.runMutation(internal.mail.ingestInbound, {
-        inboxId: m.inbox_id,
-        messageId: m.message_id,
-        from,
-        subject,
-        text,
-        ...(workspace ? { workspace } : {}),
-      });
-      console.log("inbound:", res.action);
-    } catch (err) {
-      console.error("ingest failed:", redactError(err));
-      return new Response("error", { status: 500 });
-    }
+    const attachments = (m.attachments ?? [])
+      .filter((a) => typeof a.attachment_id === "string")
+      .slice(0, 10)
+      .map((a) => ({
+        id: a.attachment_id as string,
+        ...(a.filename ? { filename: a.filename.slice(0, 200) } : {}),
+        ...(a.content_type ? { contentType: a.content_type.slice(0, 100) } : {}),
+        ...(typeof a.size === "number" ? { size: a.size } : {}),
+      }));
+    await ctx.scheduler.runAfter(0, internal.moments.inbox.receive, {
+      inboxId: m.inbox_id,
+      messageId: m.message_id,
+      ...(typeof m.thread_id === "string" ? { threadId: m.thread_id.slice(0, 200) } : {}),
+      from: m.from.slice(0, 320),
+      subject: redact(m.subject ?? "", 200),
+      text: redact(String(m.extracted_text ?? m.text ?? m.preview ?? ""), 4000),
+      attachments,
+    });
     return new Response("ok", { status: 200 });
   }),
 });
